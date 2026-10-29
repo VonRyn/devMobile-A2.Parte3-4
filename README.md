@@ -101,20 +101,4 @@ APK de depuração: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Prova de persistência da Parte 3
 
-**Vídeo da Parte 3:** pendente de gravação e inserção do link.
-
-Siga o [roteiro de persistência](docs/ROTEIRO_VIDEO_PARTE3.md): crie um repositório e uma issue, use **Forçar parada** nas configurações do Android e reabra pelo ícone. Mostre nome, descrição, visibilidade, status e histórico preservados. Repita depois de editar e excluir.
-
-Não use Limpar armazenamento nem desinstale o aplicativo durante esse teste: essas ações removem o banco. Tirar o app dos recentes pode não encerrar seu processo.
-
-## Limites do projeto
-
-O escopo continua local: sem login, APIs ou nuvem. Inbox, Copilot e opções de descoberta continuam visuais. Estrela e sino são estados visuais da tela, não registros persistidos. Prévias usam dados em memória separados e não abrem o banco real. A persistência cobre os cadastros e o histórico.
-
-## Entrega
-
-- [ ] Executar o teste de Forçar parada no aparelho/emulador.
-- [ ] Gravar a demonstração da Parte 3 e adicionar o link acima.
-- [ ] Revisar o relato do processo com as próprias palavras.
-- [ ] Publicar em um novo repositório GitHub para a Parte 3, conforme o enunciado.
-- [ ] Confirmar a entrega individual com o professor.
+**Video:** https://youtube.com/shorts/HPTCUDP6Mkw
