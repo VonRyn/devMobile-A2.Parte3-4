@@ -1,5 +1,10 @@
-package com.example.githubui
+package com.example.githubui.ui.screens.repositorios
 
+import com.example.githubui.ui.preview.GithubPreview
+import com.example.githubui.viewmodel.GithubViewModel
+
+import com.example.githubui.ui.components.registroDoBanco
+import com.example.githubui.ui.components.EstadoRegistro
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -9,12 +14,10 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun EditarRepositorioScreen(model: GithubViewModel, id: Int, onFechar: () -> Unit, onSalvo: () -> Unit) {
-    val repo = model.repositorios.find { it.id == id }
+    val estado = registroDoBanco(id, model.revisao, model.repositorios.find { it.id == id }) { model.buscarRepositorio(id) }
+    val repo = estado.valor
     if (repo == null) {
-        Column(Modifier.padding(20.dp)) {
-            Text("Repositório não encontrado.")
-            TextButton(onClick = onFechar) { Text("Voltar") }
-        }
+        EstadoRegistro(estado.carregando, estado.erro, onFechar)
     } else FormularioRepositorio(model, repo, onFechar, onSalvo)
 }
 

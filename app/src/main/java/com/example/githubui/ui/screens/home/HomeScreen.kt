@@ -1,4 +1,11 @@
-package com.example.githubui
+package com.example.githubui.ui.screens.home
+
+import com.example.githubui.ui.components.BottomBar
+import com.example.githubui.ui.components.MenuRow
+import com.example.githubui.ui.components.SectionHeader
+import com.example.githubui.ui.theme.Accent
+import com.example.githubui.ui.theme.Green
+import com.example.githubui.ui.theme.Ink
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons

@@ -1,5 +1,14 @@
-package com.example.githubui
+package com.example.githubui.ui.screens.issues
 
+import com.example.githubui.db.dto.Issue
+import com.example.githubui.ui.components.CampoSemBorda
+import com.example.githubui.ui.preview.GithubPreview
+import com.example.githubui.ui.theme.Ink
+import com.example.githubui.ui.theme.Muted
+import com.example.githubui.viewmodel.GithubViewModel
+
+import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,6 +44,9 @@ fun CriarIssueScreen(
 
 @Composable
 internal fun FormularioIssue(model: GithubViewModel, repositorioId: Int?, issue: Issue?, onFechar: () -> Unit, onSalvo: (Int) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var salvando by remember { mutableStateOf(false) }
+    BackHandler(enabled = salvando) {}
     var repoId by rememberSaveable(issue?.id) { mutableStateOf(issue?.repositorioId ?: repositorioId ?: model.repositorios.firstOrNull()?.id) }
     var titulo by rememberSaveable(issue?.id) { mutableStateOf(issue?.titulo ?: "") }
     var descricao by rememberSaveable(issue?.id) { mutableStateOf(issue?.descricao ?: "") }
@@ -46,27 +58,28 @@ internal fun FormularioIssue(model: GithubViewModel, repositorioId: Int?, issue:
         Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp, bottom = 8.dp)
             .size(width = 50.dp, height = 4.dp).background(Color(0xFF94959C), RoundedCornerShape(2.dp)))
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onFechar) { Icon(Icons.Default.Close, "Fechar", tint = Ink) }
+            IconButton(enabled = !salvando, onClick = onFechar) { Icon(Icons.Default.Close, "Fechar", tint = Ink) }
             Column(Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(if (issue == null) "Nova issue" else "Editar issue", color = Muted, fontSize = 16.sp)
                 Text("Geral", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
-            TextButton(onClick = {
+            TextButton(enabled = !salvando && !model.ocupado, onClick = {
                 erro = when {
                     selecionado == null -> "Selecione um repositório."
                     titulo.isBlank() -> "Informe o título da issue."
                     else -> null
                 }
                 if (erro == null && selecionado != null) {
-                    if (issue == null) {
-                        if (model.adicionarIssue(selecionado.id, titulo, descricao)) onSalvo(selecionado.id)
-                        else erro = "Não foi possível criar a issue. Confira o repositório e o título."
-                    } else {
-                        erro = model.editarIssue(issue.id, selecionado.id, titulo, descricao)
-                        if (erro == null) onSalvo(selecionado.id)
+                    salvando = true
+                    scope.launch {
+                        try {
+                            erro = if (issue == null) model.adicionarIssue(selecionado.id, titulo, descricao)
+                                else model.editarIssue(issue.id, selecionado.id, titulo, descricao)
+                            if (erro == null) onSalvo(selecionado.id)
+                        } finally { salvando = false }
                     }
                 }
-            }) { Text(if (issue == null) "CRIAR" else "SALVAR", color = Color(0xFF2863B6), fontSize = 14.sp) }
+            }) { Text(if (salvando) "SALVANDO" else if (issue == null) "CRIAR" else "SALVAR", color = Color(0xFF2863B6), fontSize = 14.sp) }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Box {
@@ -115,4 +128,3 @@ internal fun FormularioIssue(model: GithubViewModel, repositorioId: Int?, issue:
 private fun CriarIssueScreenPreview() {
     GithubPreview { model -> CriarIssueScreen(model, repositorioId = 1, onFechar = {}, onSalvo = {}) }
 }
-

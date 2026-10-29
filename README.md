@@ -1,156 +1,120 @@
-# GitHub UI — Trabalho A2 Segunda entrega
+# GitHub UI — A2 Parte 3: Persistência com Room
 
 **Autor:** Christian Gustavo Von Ryn  
-**Tema:** GitHub
+**Tema:** aplicativo acadêmico inspirado no GitHub, feito em Kotlin e Jetpack Compose.
 
-O aplicativo permite criar, listar, editar e excluir repositórios, além de cadastrar, consultar, concluir e excluir issues vinculadas a eles. A aba Explorar apresenta o histórico das alterações nos repositórios.
+Nesta terceira entrega, repositórios, issues e histórico passam a ser gravados em um banco SQLite local com Room. O aplicativo mantém as telas da parte 2 e carrega os dados ao abrir novamente, inclusive depois do encerramento do processo.
 
-Este trabalho foi desenvolvido individualmente. A documentação abaixo apresenta a evolução, as decisões de implementação e o funcionamento atual do projeto.
+## Evolução
 
-## 1. Como estava no Trabalho 1 e o que mudou?
+- **Parte 1:** três telas visuais e dados fixos.
+- **Parte 2:** navegação real, formulários, listas reativas e histórico em memória.
+- **Parte 3:** inserir, consultar, atualizar e excluir pelo Room; consultas dos detalhes por id; histórico persistido; migração do banco inicial.
 
-No primeira entrega, o projeto tinha três telas: Home, Explorar e Repositórios Principais. O foco era reproduzir a aparência do GitHub usando componentes do Compose. Os dados eram fixos e os elementos de navegação ainda não conectava os fluxos de funcionamento.
+**Video:** https://youtube.com/shorts/HPTCUDP6Mkw
 
-Agora na segunda entrega, o projeto passou a trabalhar com dados criados durante o uso. A lista de repositórios começa vazia e recebe os itens cadastrados pelo formulário. Cada repositório pode ser aberto, editado e excluído. Também foi acrescentada uma segunda lista, de issues, relacionadas aos repositórios.
+## Organização e decisões
 
-Durante a evolução, os layouts foram ajustados usando o próprio GitHub como referência. A Home foi simplificada para manter apenas Issues e Repositórios Principais. O botão + oferece os dois cadastros. Os formulários têm telas próprias, e Explorar passou a mostrar atividades reais do aplicativo, funcionando como um historico de tudo que é realizado.
+```text
+com.example.githubui/
+├── MainActivity.kt
+├── db/
+│   ├── GithubDatabase.kt       # Singleton, versão e migração
+│   ├── Conversores.kt         # AcaoAtividade ↔ String
+│   ├── dto/                   # Repositorio, Issue e Atividade são @Entity
+│   └── dao/                   # Consultas e operações suspend
+├── repository/
+│   └── GithubRepository.kt    # Regras, transações e Dispatchers.IO
+├── viewmodel/
+│   └── GithubViewModel.kt     # Estado da interface e resultados das operações
+├── navigation/
+│   └── AppNavigation.kt       # Factory, carga inicial e rotas
+└── ui/
+    ├── components/
+    ├── preview/
+    ├── screens/
+    └── theme/
+```
 
-| Etapa                     | Situação do projeto                                           |
-|---------------------------|---------------------------------------------------------------|
-| Entrega 1                 | Três telas e dados fixos de demonstração                      |
-| Navegação e estado        | Rotas conectadas e listas atualizadas pelo uso                |
-| Cadastro e relacionamento | Repositórios e issues criados pelo usuário                    |
-| Detalhes e alterações     | Edição, conclusão, exclusão e histórico                       |
-| Ajustes visuais           | Telas simplificadas, retirando o que por hora é desnecessario |
+O nome do pacote `dto` foi mantido para acompanhar a organização do projeto. As classes anotadas com `@Entity` representam as tabelas do Room.
 
-### Primeira Entrega
-
-No projeto antigo, as telas abaixo apresentavam a estrutura visual inicial, com foco em ficar o mais fiel possivel ao original.
-
-
-#### Home antiga
-
-A Home apresentava as todos os icones das telas princial do GitHub.
-![Home do Entrega 1](docs/imagens/entrega1-home.png)
-
-#### Explorar antiga
-
-Explorar mostrava as seções de descoberta e atividade com conteúdo fixo de demonstração.
-
-![Explorar do Entrega 1](docs/imagens/entrega1-explorar.png)
-
-#### Repositórios Principais antiga
-
-A listagem mostrava repositórios definidos no código, antes de permitir cadastrar, editar e remover itens pelo aplicativo.
-
-![Repositórios Principais do Entrega 1](docs/imagens/entrega1-repositorios.png)
-
-Esses prints documentam o ponto de partida. O vídeo e os prints da seção 6 demonstram a versão atual funcionando.
-
-## 2. Por que essas telas foram escolhidas?
-
-A organização acompanha duas tarefas principais: administrar repositórios e acompanhar suas issues. Os cadastros ficaram separados das listas para manter a interface simples. As telas de detalhes permitem consultar o item escolhido e realizar ações sobre ele.
-
-O projeto tem **Doze telas navegáveis**. As duas etapas internas de criação de repositório fazem parte da mesma tela.
-
-| Tela | Função e motivo |
+| Tabela | Campos e motivo |
 | --- | --- |
-| Home | Centraliza os acessos às duas listas e o menu + para criar itens. |
-| Explorar | Mostra o histórico de criação, edição e exclusão de repositórios, permitindo acompanhar as mudanças. |
-| Repositórios Principais | Apresenta os repositórios cadastrados; tocar em um item abre seus detalhes. |
-| Criar repositório em 2 telas | Reúne nome, descrição, visibilidade e linguagem em um fluxo de duas etapas. |
-| Editar repositório em 2 telas| Usa o mesmo formulário da criação, preenchido com os dados atuais, com Geral e Configuração e ação Salvar. |
-| Detalhes do repositório | Mostra o item escolhido, sua visibilidade, a quantidade de issues abertas e as ações de edição/exclusão. |
-| Issues | Exibe todas as issues pela Home ou somente as vinculadas ao repositório acessado. |
-| Criar issue | Permite escolher o repositório e informar título e descrição. |
-| Editar issue | Usa o formulário da criação para alterar título, descrição e repositório, preservando id e conclusão. |
-| Detalhes da issue | Mostra os dados da issue, permite editar, concluir/reabrir, excluir e acessar o repositório relacionado. |
+| `repositorios` | Id automático, nome, descrição, linguagem e visibilidade: dados apresentados e editados nas telas existentes. |
+| `issues` | Id automático, `repositorioId`, título, descrição e conclusão: cada issue pertence a um repositório. |
+| `atividades` | Id automático, ação, horário e cópias dos campos do repositório e da issue: o histórico deve sobreviver à edição ou exclusão do item original. |
 
-## 3. Como o código foi organizado e por quê?
+`@Embedded` transforma as cópias dos objetos em colunas com prefixos `repo_` e `issue_`. O conversor grava a ação do enum como texto. O histórico não tem chave estrangeira para os itens originais, pois apagá-los não deve apagar a atividade.
 
-### Navegação centralizada
+`RepositorioDao` e `IssueDao` têm `@Insert`, `@Query`, `@Update` e `@Delete` com `suspend`. Ambos consultam por id, e `IssueDao` também consulta por repositório. `AtividadeDao` insere e lista os eventos.
 
-O arquivo [AppNavigation.kt](app/src/main/java/com/example/githubui/AppNavigation.kt) concentra o objeto `Rotas`, o `NavHost` e o `Scaffold`. As rotas têm nomes definidos em constantes, evitando repetir textos de navegação em vários lugares.
 
-O `currentBackStackEntryAsState()` acompanha a rota atual para ajustar o cabeçalho e a presença da barra inferior. Os formulários de criação usam seu próprio cabeçalho. Os botões de voltar usam `popBackStack()` e as trocas de tela usam `navigate()`.
 
-A navegação foi centralizada para facilitar a manutenção. As telas recebem funções como `onCriar`, `onDetalhes` e `onVoltar`, enquanto o controle das rotas permanece no arquivo de navegação. As animações de entrada e saída foram desativadas para a troca de telas ser direta.
+## Como funciona
 
-### Dados compartilhados
+```text
+Formulário → coroutine → ViewModel → Repository → DAO → Room/SQLite
+                                     ↓
+                             nova leitura do banco
+                                     ↓
+                           listas reativas da interface
+```
 
-O arquivo [GithubViewModel.kt](app/src/main/java/com/example/githubui/GithubViewModel.kt) contém o estado compartilhado e as operações sobre as listas. Isso permite que uma alteração feita no formulário apareça na listagem e nos detalhes.
+As listas `mutableStateListOf` continuam existindo como cópias para renderização. O banco é a fonte dos registros. Não há mais contadores manuais para gerar ids.
 
-São utilizadas três `data class`:
+O Repository usa `withContext(Dispatchers.IO)` para as operações de banco. O ViewModel recebe o Repository por uma Factory criada na navegação. A carga inicial usa `LaunchedEffect(Unit)`. As telas de detalhes e de edição usam `LaunchedEffect` com id e revisão dos dados para consultar o registro correto no DAO; as listas não são a fonte dos detalhes.
 
-- `Repositorio`: id, nome, descrição, linguagem e visibilidade.
-- `Issue`: id, id do repositório, título, descrição e situação de conclusão.
-- `AtividadeRepositorio`: registro da ação, cópia dos dados do repositório e horário.
+Os formulários chamam as funções suspend usando `rememberCoroutineScope().launch`. Eles aguardam o resultado, mostram erros sem fechar e desabilitam a confirmação durante a gravação. O ViewModel retorna `null` em caso de sucesso ou uma mensagem em caso de falha. Cancelamentos de coroutine são propagados.
 
-As listas são criadas com `mutableStateListOf`. Repositórios e issues são apresentados com `LazyColumn` e `Card`. A atualização do estado faz o Compose atualizar a interface.
+Cada alteração, seu registro de histórico e a leitura atualizada acontecem em uma transação. Excluir um repositório remove suas issues e registra os eventos na mesma transação. Isso é garantido pelo fluxo do Repository, sem uma chave estrangeira nas tabelas atuais. O nome do repositório é validado contra o banco ignorando maiúsculas; uma issue só pode ser salva com um repositório existente. Salvar sem mudanças não duplica o histórico.
 
-Cada item recebe um id crescente. As telas de detalhes recebem esse id pela rota e consultam o objeto correspondente. Isso evita depender da posição do item na lista, que pode mudar após uma exclusão.
+## Banco inicial e migração
 
-Os dados ficam apenas em memória. O ViewModel mantém o estado durante mudanças de configuração, como rotação da tela, mas não existe banco de dados ou armazenamento em arquivo. Encerrar o processo do app perde os cadastros; apenas mandar o app para segundo plano não necessariamente encerra o processo.
+`GithubDatabase` usa Singleton com `@Volatile` e `synchronized`, nome local `github_database` e versão 2. A versão 1, criada na primeira etapa da integração, já tinha repositórios e issues. `MIGRATION_1_2` acrescenta somente a tabela de atividades, preservando os cadastros anteriores. Não é utilizada migração destrutiva.
 
-### Componentes e prévias
+O esquema do Room é exportado para `app/schemas/`. Dados que existiam apenas em memória na Parte 2 não podem ser recuperados depois de encerrado o processo.
 
-Cada tela fica em um arquivo ou conjunto de telas relacionadas. Componentes comuns, como a barra inferior e as linhas da Home, ficam em [CommonUi.kt](app/src/main/java/com/example/githubui/CommonUi.kt). Os campos sem bordas são compartilhados pelos dois formulários de criação.
+## Dificuldades técnicas da transição
 
-As telas possuem `@Preview`. Os dados de exemplo das prévias ficam em [PreviewSupport.kt](app/src/main/java/com/example/githubui/PreviewSupport.kt) e não preenchem as listas quando o aplicativo inicia normalmente.
-
-## 4. Qual é a complexidade extra dos detalhes?
-
-A tela de detalhes do repositório combina informações das duas listas: usa o id do repositório para contar suas issues abertas e abrir somente as issues relacionadas a ele. O botão + também abre o cadastro com esse repositório selecionado.
-
-Por exemplo: um repositório com duas issues abertas mostra o número 2. Ao abrir uma issue e marcá-la como concluída, o número passa para 1 quando voltamos aos detalhes do repositório. A lista ainda mostra a issue concluída, com seu estado atualizado.
-
-Os detalhes também abrem a edição do repositório. A exclusão pede confirmação e remove as issues vinculadas, evitando que existam issues apontando para um repositório que não existe mais.
-
-Essa solução foi escolhida porque representa uma relação natural no tema GitHub: uma issue pertence a um repositório. Assim, os detalhes têm ações e informações relacionadas, além de simplesmente repetir campos de uma lista.
-
-Como complemento, Explorar registra as alterações. Cada atividade guarda uma cópia dos dados naquele momento, por isso uma edição posterior não altera o texto dos registros anteriores e a exclusão não apaga o histórico.
-
-## 5. Quais dificuldades e ajustes apareceram no processo?
-
-Os seguintes pontos foram identificados e tratados durante o desenvolvimento:
-
-| Ponto observado | Solução aplicada |
+| Mudança | Solução |
 | --- | --- |
-| As telas iniciais eram visuais e usavam dados fixos. | Foram adicionados o NavHost central, os callbacks de navegação e o estado compartilhado no ViewModel. |
-| Os primeiros layouts funcionais tinham mais textos e elementos do que as referências do GitHub. | As telas foram ajustadas individualmente a partir de prints: listas simplificadas, formulários separados e cabeçalhos semelhantes às referências. |
-| O botão + de Issues parecia ativo, mas ficava desabilitado quando não havia repositórios. | O botão passou a abrir o formulário sempre. A seleção de um repositório válido é verificada ao salvar. |
-| A troca de telas apresentava uma animação percebida como demora. | As transições de entrada, saída e retorno do NavHost foram desativadas. |
-| Excluir um repositório poderia deixar issues sem referência. | A exclusão também remove as issues que possuem o id daquele repositório. |
+| Uma gravação agora é assíncrona. | Os formulários aguardam a conclusão antes de navegar e bloqueiam envios repetidos. |
+| Os ids não podem continuar sendo gerados pelo ViewModel. | Novos itens usam id 0 e os DAOs retornam o id criado pelo SQLite. |
+| As listas da tela podem estar vazias ou antigas. | Detalhes e edição buscam por id no banco e exibem carregamento/erro. |
+| O histórico contém outros objetos. | `@Embedded` grava cópias em colunas e um conversor armazena o enum da ação. |
+| Uma exclusão afeta várias tabelas. | Repository executa remoção das issues, remoção do repositório e histórico em transação. |
+| A primeira versão do banco já pode existir no aparelho. | Migração 1 → 2 preserva os registros e acrescenta a tabela nova. |
 
-## 6. Evidências visuais
+Esses são os problemas técnicos tratados na implementação. O autor deve complementar o relato com as próprias dificuldades de aprendizado antes da entrega. O trabalho é individual; não há divisão de tarefas entre três integrantes.
 
-**Vídeo de demonstração:** [Assistir à segunda entrega — A2 Parte 2](https://youtu.be/hMBlrSu5Fac)
+## Executar e testar
 
-| Tela | Descrição                                |
-| --- |------------------------------------------|
-| ![Home](docs/imagens/01-home.png) | Home atual e menu + aberto               |
-| ![Criar repositorio 1](docs/imagens/02-criar-repositorio.png) ![Criar repositorio 2](docs/imagens/02.2-criar-repositorio.png)| Campos preenchidos no cadastro           |
-| ![Listar Repositorios](docs/imagens/03-lista-repositorios.png) | repositórios cadastrados                 |
-| ![Detalhes do repositorio](docs/imagens/04-detalhes-repositorio.png)  | Detalhes do repositorios e suas issues   |
-| ![Editar Repositorio](docs/imagens/05-editar-repositorio.png) ![Editar Repositorio 2](docs/imagens/05.02-editar-repositorio.png)| Edição dos dados do repositório          |
-| ![Criar Issue](docs/imagens/06-criar-issue.png) | Criação de novas issues                  |
-| ![Listar Issues](docs/imagens/07-lista-issues.png) | Lista de issues                          |
-| ![Detalhes da Issue](docs/imagens/08-detalhes-issue.png) | Detalhes da issue                        |
-| ![Pop-up de Exclusao](docs/imagens/09-excluir.png) | Confirmação de exclusão                  |
-| ![Explorar](docs/imagens/10-explorar.png) | Atividades de criação, edição e exclusão |
-
-## 7. Como executar
-
-1. Abrir a pasta do projeto no Android Studio.
-2. Instalar o Android SDK 37 pelo SDK Manager e aguardar a sincronização do Gradle.
-3. Usar um JDK compatível com a configuração do projeto; o arquivo de critérios do daemon solicita JDK 25.
-4. Selecionar um emulador ou aparelho com Android 7.0 (API 24) ou superior.
-5. Executar o módulo `app`.
-
-Para compilar e rodar os testes unitários no PowerShell, na raiz do projeto:
+Abra o projeto no Android Studio, sincronize o Gradle e execute `app` em Android 7.0/API 24 ou superior. A configuração atual usa SDK 37 e JDK 25 no daemon do Gradle.
 
 ```powershell
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
 ```
 
-O APK de depuração é gerado em `app/build/outputs/apk/debug/app-debug.apk`.
+Os testes locais usam Room com SQLite no ambiente Android do Robolectric. Cobrem CRUD dos DAOs, consultas por id/repositório, ids automáticos, validação, histórico, atualização de issue, exclusão vinculada, rollback da transação, migração 1 → 2 e fechamento/reabertura de um banco em arquivo. Eles não substituem o teste de Forçar parada e a gravação da interface em um aparelho.
+
+APK de depuração: `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Prova de persistência da Parte 3
+
+**Vídeo da Parte 3:** pendente de gravação e inserção do link.
+
+Siga o [roteiro de persistência](docs/ROTEIRO_VIDEO_PARTE3.md): crie um repositório e uma issue, use **Forçar parada** nas configurações do Android e reabra pelo ícone. Mostre nome, descrição, visibilidade, status e histórico preservados. Repita depois de editar e excluir.
+
+Não use Limpar armazenamento nem desinstale o aplicativo durante esse teste: essas ações removem o banco. Tirar o app dos recentes pode não encerrar seu processo.
+
+## Limites do projeto
+
+O escopo continua local: sem login, APIs ou nuvem. Inbox, Copilot e opções de descoberta continuam visuais. Estrela e sino são estados visuais da tela, não registros persistidos. Prévias usam dados em memória separados e não abrem o banco real. A persistência cobre os cadastros e o histórico.
+
+## Entrega
+
+- [ ] Executar o teste de Forçar parada no aparelho/emulador.
+- [ ] Gravar a demonstração da Parte 3 e adicionar o link acima.
+- [ ] Revisar o relato do processo com as próprias palavras.
+- [ ] Publicar em um novo repositório GitHub para a Parte 3, conforme o enunciado.
+- [ ] Confirmar a entrega individual com o professor.

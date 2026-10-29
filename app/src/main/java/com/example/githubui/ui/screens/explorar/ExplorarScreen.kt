@@ -1,4 +1,13 @@
-package com.example.githubui
+package com.example.githubui.ui.screens.explorar
+
+import com.example.githubui.db.dto.AcaoAtividade
+import com.example.githubui.db.dto.Atividade
+import com.example.githubui.ui.components.BottomBar
+import com.example.githubui.ui.preview.GithubPreview
+import com.example.githubui.ui.theme.Green
+import com.example.githubui.ui.theme.Ink
+import com.example.githubui.ui.theme.Muted
+import com.example.githubui.viewmodel.GithubViewModel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -161,4 +170,3 @@ private fun ExplorarScreenPreview() {
         }
     }
 }
-

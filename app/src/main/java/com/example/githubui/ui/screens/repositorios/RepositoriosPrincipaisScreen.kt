@@ -1,4 +1,11 @@
-package com.example.githubui
+package com.example.githubui.ui.screens.repositorios
+
+import com.example.githubui.ui.components.BottomBar
+import com.example.githubui.ui.preview.GithubPreview
+import com.example.githubui.ui.theme.Ink
+import com.example.githubui.ui.theme.LinkBlue
+import com.example.githubui.ui.theme.Muted
+import com.example.githubui.viewmodel.GithubViewModel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -78,13 +85,6 @@ internal fun RepositoriosTopBar(onVoltar: () -> Unit) {
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White, titleContentColor = Ink, navigationIconContentColor = Ink)
     )
-}
-
-@Composable
-internal fun ConfirmarExclusao(titulo: String, mensagem: String, onCancelar: () -> Unit, onConfirmar: () -> Unit) {
-    AlertDialog(onDismissRequest = onCancelar, title = { Text(titulo) }, text = { Text(mensagem) },
-        confirmButton = { TextButton(onClick = onConfirmar) { Text("Excluir") } },
-        dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } })
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 820)

@@ -1,5 +1,22 @@
-package com.example.githubui
+package com.example.githubui.navigation
 
+import com.example.githubui.ui.components.BottomBar
+import com.example.githubui.ui.screens.explorar.ExplorarScreen
+import com.example.githubui.ui.screens.home.HomeScreen
+import com.example.githubui.ui.screens.issues.CriarIssueScreen
+import com.example.githubui.ui.screens.issues.DetalhesIssueScreen
+import com.example.githubui.ui.screens.issues.EditarIssueScreen
+import com.example.githubui.ui.screens.issues.IssuesScreen
+import com.example.githubui.ui.screens.repositorios.CriarRepositorioScreen
+import com.example.githubui.ui.screens.repositorios.DetalhesRepositorioScreen
+import com.example.githubui.ui.screens.repositorios.EditarRepositorioScreen
+import com.example.githubui.ui.screens.repositorios.RepositoriosPrincipaisScreen
+import com.example.githubui.ui.screens.repositorios.RepositoriosTopBar
+import com.example.githubui.viewmodel.GithubViewModel
+import androidx.compose.ui.platform.LocalContext
+import com.example.githubui.db.GithubDatabase
+import com.example.githubui.repository.GithubRepository
+import kotlinx.coroutines.launch
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.*
@@ -36,7 +53,29 @@ object Rotas {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation(model: GithubViewModel = viewModel()) {
+fun AppNavigation() {
+    val context = LocalContext.current
+    val banco = remember(context) {
+        GithubDatabase.getInstance(context.applicationContext)
+    }
+    val factory = remember(banco) { GithubViewModel.factory(GithubRepository(banco)) }
+    val model: GithubViewModel = viewModel(factory = factory)
+    LaunchedEffect(Unit) { model.carregarDados() }
+    if (!model.carregado) {
+        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            val erro = model.erroCarregamento
+            if (erro == null) CircularProgressIndicator()
+            else {
+                val scope = rememberCoroutineScope()
+                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                    Text(erro)
+                    TextButton(onClick = { scope.launch { model.carregarDados() } }) { Text("Tentar novamente") }
+                }
+            }
+        }
+        return
+    }
+
     val navInterno = rememberNavController()
     val backStackEntry by navInterno.currentBackStackEntryAsState()
     val rotaAtual = backStackEntry?.destination?.route
@@ -50,6 +89,7 @@ fun AppNavigation(model: GithubViewModel = viewModel()) {
         Rotas.ISSUES -> "Issues"
         else -> "Home"
     }
+
     Scaffold(
         topBar = {
             if (rotaAtual == Rotas.REPOSITORIOS) {
